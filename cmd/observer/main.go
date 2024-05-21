@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
+	"time"
 
 	v1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -16,7 +16,8 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-var done = chan struct{}(nil)
+var done = make(chan struct{}, 1)
+var monitorStopped = make(chan struct{}, 1)
 
 func main() {
 	var ns *string = flag.String("ns", "default", "| separated namespaces")
@@ -47,21 +48,15 @@ func main() {
 		close(done)
 	}()
 
-	var wg sync.WaitGroup
-
 	for _, namespace := range namespaces {
-		wg.Add(1)
-		go startWatcher(clientset, &namespace, &wg)
+		go startWatcher(clientset, &namespace)
 	}
-	fmt.Println("before wait")
 
-	wg.Wait()
-
-	fmt.Println("after wait")
+	<-monitorStopped
+	fmt.Fprintf(os.Stdout, "Monitoring stopped")
 }
 
-func startWatcher(clientset *kubernetes.Clientset, namespace *string, wg *sync.WaitGroup) {
-	defer wg.Done()
+func startWatcher(clientset *kubernetes.Clientset, namespace *string) {
 	deployments, err := clientset.AppsV1().Deployments(*namespace).List(context.TODO(), metav1.ListOptions{})
 
 	if err != nil {
@@ -70,28 +65,43 @@ func startWatcher(clientset *kubernetes.Clientset, namespace *string, wg *sync.W
 
 	for _, deploy := range deployments.Items {
 		deployVar := deploy
-		wg.Add(1)
-		go monitorPodStatus(clientset, namespace, &deployVar, wg)
-		//go monitorEvents(clientset, namespace, &deployVar, wg)
-		//go monitorLogs(clientset, namespace, &deployVar, wg)
+		go monitorDeployment(clientset, namespace, &deployVar)
 	}
 }
 
-func monitorPodStatus(clientset *kubernetes.Clientset, namespace *string, deployment *v1.Deployment, wg *sync.WaitGroup) {
-	defer wg.Done()
-	deployPods, err := clientset.CoreV1().Pods(*namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=" + deployment.Name + "-manipura"})
+func monitorDeployment(clientset *kubernetes.Clientset, namespace *string, deployment *v1.Deployment) {
+	defer func() {
+		monitorStopped <- struct{}{}
+	}()
 
-	if err != nil {
-		panic(err)
-	}
+	tick := time.Tick(5 * time.Second)
+	for {
+		select {
+		case <-tick:
+			deployPods, err := clientset.CoreV1().Pods(*namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=" + deployment.Name})
 
-deployLoop:
-	for _, pod := range deployPods.Items {
-		for _, container := range pod.Status.ContainerStatuses {
-			if !container.Ready {
-				fmt.Println("Deployment not ready ready: ", deployment.Name, "\n Namespace: ", *namespace)
-				break deployLoop
+			if err != nil {
+				panic(err)
 			}
+
+		deployLoop:
+			for _, pod := range deployPods.Items {
+				if pod.Status.Phase != "Running" && time.Since(pod.CreationTimestamp.Time) > time.Duration(2*time.Minute) {
+					fmt.Fprintf(os.Stderr, "Deployment: %s in Namespace: %s not ready \n", deployment.Name, *namespace)
+				} else if len(pod.Status.ContainerStatuses) > 0 {
+					for _, container := range pod.Status.ContainerStatuses {
+						if !container.Ready && time.Since(pod.CreationTimestamp.Time) > time.Duration(2*time.Minute) {
+							fmt.Fprintf(os.Stderr, "Deployment: %s in Namespace: %s not ready \n", deployment.Name, *namespace)
+							break deployLoop
+						}
+					}
+				} else {
+					fmt.Fprintf(os.Stderr, "No container running in Deployment: %s in Namespace: %s not ready \n", deployment.Name, *namespace)
+				}
+			}
+		case <-done:
+			fmt.Fprintf(os.Stdout, "Exiting...\n")
+			return
 		}
 	}
 }
