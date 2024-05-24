@@ -1,13 +1,9 @@
 package main
 
 import (
-	"context"
 	"flag"
-	"log"
-	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 
 	"github.com/gargrohit2523/kube-observer/pkg/observer"
 
@@ -32,32 +28,11 @@ func main() {
 
 	namespaces := strings.Split(*ns, "|")
 
-	var done = make(chan struct{}, 1)
-
-	go func() {
-		os.Stdin.Read(make([]byte, 1))
-		close(done)
-	}()
-
-	var wg sync.WaitGroup
-
 	ob := observer.New(&observer.Config{
 		Namespaces: namespaces,
 		Interval:   *interval,
 		KubeConfig: *kubeconfig,
 	})
 
-	// create a context that we can cancel
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	ob.Start(ctx, &wg)
-
-	<-done
-
-	cancel()
-
-	log.Println("Waiting for all goroutines to finish...")
-	wg.Wait()
-	log.Println("Monitoring stopped.")
+	ob.Start()
 }
