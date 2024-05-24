@@ -22,15 +22,37 @@ func New(config *Config) *Observer {
 	return &Observer{Config: config}
 }
 
-func (ob *Observer) Start(ctx context.Context, wg *sync.WaitGroup) {
+func (ob *Observer) Start() {
+
 	kubeClient := newKubeClient()
 
 	ob.client = kubeClient.get(ob.Config)
 
+	var done = make(chan struct{}, 1)
+
+	go func() {
+		os.Stdin.Read(make([]byte, 1))
+		close(done)
+	}()
+
+	var wg sync.WaitGroup
+
+	// create a context that we can cancel
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	for _, ns := range ob.Config.Namespaces {
 		wg.Add(1)
-		go startObserver(ob, ns, ctx, wg)
+		go startObserver(ob, ns, ctx, &wg)
 	}
+
+	<-done
+
+	cancel()
+
+	log.Println("Waiting for all goroutines to finish...")
+	wg.Wait()
+	log.Println("Monitoring stopped.")
 }
 
 func startObserver(ob *Observer, namespace string, ctx context.Context, wg *sync.WaitGroup) {
