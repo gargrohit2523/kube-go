@@ -7,6 +7,9 @@ import (
 	"sync"
 	"time"
 
+	kube "github.com/gargrohit2523/kube-go/pkg/kubeclient"
+	"github.com/gargrohit2523/kube-go/pkg/types"
+
 	v1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,19 +17,19 @@ import (
 )
 
 type Observer struct {
-	Config *Config
+	Config *types.ObserverConfig
 	client *kubernetes.Clientset
 }
 
-func New(config *Config) *Observer {
+func New(config *types.ObserverConfig) *Observer {
 	return &Observer{Config: config}
 }
 
 func (ob *Observer) Start() {
 
-	kubeClient := newKubeClient()
+	kubeClient := kube.NewKubeClient()
 
-	ob.client = kubeClient.get(ob.Config)
+	ob.client = kubeClient.Get(ob.Config)
 
 	var done = make(chan struct{}, 1)
 

@@ -1,17 +1,19 @@
-package observer
+package kubeclient
 
 import (
+	"github.com/gargrohit2523/kube-go/pkg/types"
+
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 )
 
 type kubeClient struct{}
 
-func newKubeClient() *kubeClient {
+func NewKubeClient() *kubeClient {
 	return &kubeClient{}
 }
 
-func (k *kubeClient) get(config *Config) *kubernetes.Clientset {
+func (k *kubeClient) Get(config *types.ObserverConfig) *kubernetes.Clientset {
 	clientConfig, err := clientcmd.BuildConfigFromFlags("", config.KubeConfig)
 
 	if err != nil {

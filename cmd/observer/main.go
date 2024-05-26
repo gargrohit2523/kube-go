@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/gargrohit2523/kube-go/pkg/observer"
+	"github.com/gargrohit2523/kube-go/pkg/types"
 
 	"k8s.io/client-go/util/homedir"
 )
@@ -28,7 +29,7 @@ func main() {
 
 	namespaces := strings.Split(*ns, "|")
 
-	ob := observer.New(&observer.Config{
+	ob := observer.New(&types.ObserverConfig{
 		Namespaces: namespaces,
 		Interval:   *interval,
 		KubeConfig: *kubeconfig,

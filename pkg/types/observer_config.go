@@ -1,6 +1,6 @@
-package observer
+package types
 
-type Config struct {
+type ObserverConfig struct {
 	Namespaces []string
 	Interval   int
 	KubeConfig string
