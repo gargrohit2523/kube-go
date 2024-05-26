@@ -1,4 +1,4 @@
-module github.com/gargrohit2523/kube-observer
+module github.com/gargrohit2523/kube-go
 
 go 1.22.0
 
