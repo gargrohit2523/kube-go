@@ -2,13 +2,13 @@ package observer
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"os"
 	"sync"
 	"time"
 
 	v1 "k8s.io/api/apps/v1"
+	coreV1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
@@ -72,7 +72,7 @@ func startObserver(ob *Observer, namespace string, ctx context.Context, wg *sync
 			for _, deploy := range deployments.Items {
 				deployVar := deploy
 				wg.Add(1)
-				go ob.monitorDeployment(ob.client, namespace, &deployVar, wg)
+				go monitorDeployment(ob.client, namespace, &deployVar, wg)
 			}
 		case <-ctx.Done():
 			log.Println("Exiting goroutine for " + namespace + " gracefully...")
@@ -81,7 +81,7 @@ func startObserver(ob *Observer, namespace string, ctx context.Context, wg *sync
 	}
 }
 
-func (ob *Observer) monitorDeployment(clientset *kubernetes.Clientset, namespace string, deployment *v1.Deployment, wg *sync.WaitGroup) {
+func monitorDeployment(clientset *kubernetes.Clientset, namespace string, deployment *v1.Deployment, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	deployPods, err := clientset.CoreV1().Pods(namespace).List(context.TODO(), metav1.ListOptions{LabelSelector: "app=" + deployment.Name})
@@ -90,19 +90,26 @@ func (ob *Observer) monitorDeployment(clientset *kubernetes.Clientset, namespace
 		panic(err)
 	}
 
-deployLoop:
 	for _, pod := range deployPods.Items {
-		if pod.Status.Phase != "Running" && time.Since(pod.CreationTimestamp.Time) > time.Duration(2*time.Minute) {
-			fmt.Fprintf(os.Stderr, "Deployment: %s in Namespace: %s unhealthy \n", deployment.Name, namespace)
-		} else if len(pod.Status.ContainerStatuses) > 0 {
-			for _, container := range pod.Status.ContainerStatuses {
-				if !container.Ready && time.Since(pod.CreationTimestamp.Time) > time.Duration(2*time.Minute) {
-					fmt.Fprintf(os.Stderr, "Deployment: %s in Namespace: %s unhealthy \n", deployment.Name, namespace)
-					break deployLoop
-				}
-			}
-		} else {
-			fmt.Fprintf(os.Stderr, "No container running. Deployment: %s in Namespace: %s unhealthy \n", deployment.Name, namespace)
+		if podHealthy := checkPodState(pod); !podHealthy {
+			log.Printf("Deployment: %s in Namespace: %s unhealthy \n", deployment.Name, namespace)
 		}
 	}
+}
+
+func checkPodState(pod coreV1.Pod) bool {
+	podReady := true
+	if pod.Status.Phase != "Running" && time.Since(pod.CreationTimestamp.Time) > time.Duration(2*time.Minute) {
+		podReady = false
+	} else if len(pod.Status.ContainerStatuses) > 0 {
+		for _, container := range pod.Status.ContainerStatuses {
+			if !container.Ready && time.Since(pod.CreationTimestamp.Time) > time.Duration(2*time.Minute) {
+				podReady = false
+				break
+			}
+		}
+	} else {
+		podReady = false
+	}
+	return podReady
 }
