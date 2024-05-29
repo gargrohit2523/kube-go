@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/gargrohit2523/kube-go/pkg/observer"
-	"github.com/gargrohit2523/kube-go/pkg/types"
+	"github.com/rogarg19/kube-go/pkg/observer"
+	"github.com/rogarg19/kube-go/pkg/types"
 
 	"k8s.io/client-go/util/homedir"
 )
