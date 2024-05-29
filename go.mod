@@ -1,4 +1,4 @@
-module github.com/gargrohit2523/kube-go
+module github.com/rogarg19/kube-go
 
 go 1.22.0
 

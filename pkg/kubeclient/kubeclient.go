@@ -1,7 +1,7 @@
 package kubeclient
 
 import (
-	"github.com/gargrohit2523/kube-go/pkg/types"
+	"github.com/rogarg19/kube-go/pkg/types"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"

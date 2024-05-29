@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	kube "github.com/gargrohit2523/kube-go/pkg/kubeclient"
-	"github.com/gargrohit2523/kube-go/pkg/types"
+	kube "github.com/rogarg19/kube-go/pkg/kubeclient"
+	"github.com/rogarg19/kube-go/pkg/types"
 
 	v1 "k8s.io/api/apps/v1"
 	coreV1 "k8s.io/api/core/v1"
