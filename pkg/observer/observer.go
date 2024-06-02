@@ -29,7 +29,10 @@ func (ob *Observer) Start() {
 
 	kubeClient := kube.NewKubeClient()
 
-	ob.client = kubeClient.Get(ob.Config)
+	ob.client = kubeClient.Get(
+		&types.KubeClientConfig{
+			KubeConfig: ob.Config.KubeConfig,
+		})
 
 	var done = make(chan struct{}, 1)
 

@@ -13,7 +13,7 @@ func NewKubeClient() *kubeClient {
 	return &kubeClient{}
 }
 
-func (k *kubeClient) Get(config *types.ObserverConfig) *kubernetes.Clientset {
+func (k *kubeClient) Get(config *types.KubeClientConfig) *kubernetes.Clientset {
 	clientConfig, err := clientcmd.BuildConfigFromFlags("", config.KubeConfig)
 
 	if err != nil {

@@ -1,10 +1,13 @@
 package types
 
 type ChaosConfig struct {
-	TargetObject TargetChaosObject
+	Deployment string
+	Namespace  string
+	KubeConfig string
+
+	Settings ChaosSettings
 }
 
-type TargetChaosObject struct {
-	ObjectType string
-	Namespace  string
+type ChaosSettings struct {
+	Duration int
 }
